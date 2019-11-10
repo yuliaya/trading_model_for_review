@@ -20,13 +20,15 @@ class TradingItem:
     3. state features (possession, owner etc)
     '''
 
-    def __init__(self, brand: str = 'Chanel',
+    def __init__(self,
+                 brand: str = 'Chanel',
                  model: str = 'Classic Flap',
                  color: str = 'black',
                  material: str = 'lamb skin',
                  condition: str = 'new with tags',
+                 time: int = 0,
                  owner=User('trader'),
-                 time: int=0):
+                 ):
         self.brand = brand
         self.model = model
         self.color = color
@@ -35,11 +37,11 @@ class TradingItem:
         self.income = 0  # current income the platform got from this item
         self.cost = 0  # how much the platform has already paid for the item
         self.possession = 'user'  # who is current owner of the item
-        self.t = time  # current item lifetime
+        self.time = time  # current item lifetime
         self.lifetime = None  # expected lifetime
         self.price_predicted = None  # predicted product price with the ending of expected lifetime - demand
         self.price_supply = None  # current supply price
-        self.price_real = None  # current evaluated price of an item considering market objectives and product features
+        self.price_market = None  # current evaluated price of an item considering market objectives and product features
         self.price_transactional = None  # the platform defines which price to suggest
         self.owner = owner  # defines a user segment the owner belongs to
         self.state = True  # defines if item is live in the system of already left
@@ -49,10 +51,10 @@ class TradingItem:
         output = \
         '%s %s bag.\nColor: %s. Meterial: %s. Condition: %s.\nOwner: a user from %s segment.\n' \
         %(self.brand, self.model, self.color, self.material, self.condition, self.owner) + \
-        ('Live on platform for %i days out of expected %i days.\n' %(self.t, self.lifetime) if self.lifetime else
-        'Live on platform for %i days.\n' %(self.t)) + \
-        ('Current bag price: %d.' %self.price if self.price else '') + \
-        'Belongs to: %s' %self.possession
+        ('Live on platform for %i days out of expected %i days.\n' %(self.time, self.lifetime) if self.lifetime else
+        'Live on platform for %i days.\n' %(self.time)) + \
+        ('Current bag price: %d.' %self.price_market if self.price_market else '') + \
+        'Belongs to: %s\nCurrent state: %s' %(self.possession, self.cur_state)
 
         return(output)
 

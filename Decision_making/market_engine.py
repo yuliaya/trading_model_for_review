@@ -1,8 +1,7 @@
 from typing import Type
 from Trading.trading_item import TradingItem
-from Trading.market_state import Market
 
-def trading_algo(item: Type[TradingItem], market: Type[Market]):
+def trading_algo(item: Type[TradingItem]):
 
-    if item.lifetime < item.t:
-        item.t += 1
+    if item.lifetime < item.time:
+        item.time += 1
