@@ -7,3 +7,6 @@ This model simulates different scenarios of a trading platform using mathematica
 
 ## Lifetime block scheme for an item
 ![Picture2](https://github.com/yuliaya/trading_model/blob/master/Picture2.png)
+
+## Get started
+For market simulation run trading_simulator.py
