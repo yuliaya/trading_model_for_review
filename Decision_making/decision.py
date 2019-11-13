@@ -6,7 +6,7 @@ def check_invest_interest(item: Type[TradingItem], market: Type[Market]):
 
     # if future price is expected to grow - the platform decides to buy the item
 
-    if item.price_real < item.price_predicted:
+    if item.price_market < item.price_predicted:
         item.cur_state = 'user_decision'
     else:
         item.cur_state = 'transactional_pricing'
@@ -17,10 +17,11 @@ def user_decision(item: Type[TradingItem]):
     # user decides whether he wants to continue and sell the item or leave the platform
     user = item.owner
 
-    # todo change fictive decision engine for a user
+    # todo change fictive decision engine for a user + define market price
     if True:
         user.selling_decision = True
         item.cur_state = 'trading'
+        item.price_supply = 80.
     else:
         item.cur_state = 'left_market'
         item.state = False

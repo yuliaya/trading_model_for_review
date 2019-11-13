@@ -36,6 +36,7 @@ class TradingItem:
         self.condition = condition
         self.income = 0  # current income the platform got from this item
         self.cost = 0  # how much the platform has already paid for the item
+        self.likes = 0  # this parameter shows how attractive iis the product on market
         self.possession = 'user'  # who is current owner of the item
         self.time = time  # current item lifetime
         self.lifetime = None  # expected lifetime
