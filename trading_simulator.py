@@ -1,6 +1,6 @@
 from item_journey import ROUTE
-from Trading.trading_item import TradingItem
-from Trading.market_state import Market
+from utils.trading_item import TradingItem
+from utils.market_state import Market
 from typing import List
 from inspect import getfullargspec
 

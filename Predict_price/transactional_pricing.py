@@ -1,5 +1,5 @@
 from typing import Type
-from Trading.trading_item import TradingItem
+from utils.trading_item import TradingItem
 
 def transactional_pricing(item: Type[TradingItem]):
 

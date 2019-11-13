@@ -1,6 +1,6 @@
 from typing import Type
-from Trading.trading_item import TradingItem
-from Trading.market_state import Market
+from utils.trading_item import TradingItem
+from utils.market_state import Market
 
 def check_invest_interest(item: Type[TradingItem], market: Type[Market]):
 
