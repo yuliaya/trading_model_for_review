@@ -1,8 +1,8 @@
-from Lifetime.predict_lifetime import predict_lifetime
-from Predict_price.future_price import future_price
-from Predict_price.transactional_pricing import transactional_pricing
-from Decision_making.decision import check_invest_interest, user_decision, check_if_worth_selling
-from Decision_making.market_engine import trading_algo
+from lifetime.predict_lifetime import predict_lifetime
+from predict_price.future_price import future_price
+from predict_price.transactional_pricing import transactional_pricing
+from decision_making.decision import check_invest_interest, user_decision, check_if_worth_selling
+from decision_making.market_engine import trading_algo
 
 ROUTE = {  # this dict defines the next state of any item while considering the current one
     'start': predict_lifetime,
