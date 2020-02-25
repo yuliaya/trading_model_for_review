@@ -1,8 +1,9 @@
 from typing import Type
 from utils.trading_item import TradingItem
+from utils.market_state import Market
 
 
-def future_price(item: Type[TradingItem]):
+def future_price(item: Type[TradingItem], market: Type[Market]):
 
     # todo change fictive current and future prices
     if item.cur_state == 'predict_lifetime':

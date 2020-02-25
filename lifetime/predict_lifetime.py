@@ -6,8 +6,8 @@ def predict_lifetime(item: Type[TradingItem], market: Type[Market]):
     
     #todo change fictive lifetime value
 
-    if item.time == 0:
-        item.lifetime = market.epoch + 10
+    if item.cur_time == 0:
+        item.lifetime = 10
         item.cur_state = 'predict_lifetime'
     else:
         pass

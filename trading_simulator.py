@@ -5,8 +5,16 @@ from typing import List
 from inspect import getfullargspec
 
 
-def create_items(epoch, amount: int=0):
-    return [TradingItem(time=epoch)] * amount
+def create_items(epoch, amount: int=0):  # todo real item parameters based on stats
+    '''
+
+    :param epoch:
+    :param amount:
+    :return:
+
+    this function generates items based on market expectations re number of new items and their characteristics
+    '''
+    return [TradingItem(time_created=epoch)] * amount
 
 
 def run_simulator(market: Market):
@@ -15,13 +23,11 @@ def run_simulator(market: Market):
 
     for epoch in range(market.lifetime_period):
         if epoch == 0:
-            items.extend(create_items(epoch, 2))
-        else:
-            items.extend(create_items(epoch))
+            items.extend(create_items(epoch, 2))  # todo correct number of new items based on stats from sales
 
         for item in items:
 
-            while item.time == epoch and item.state:  # continue while we go the the next time period or leave platform
+            while item.cur_time == epoch and item.state:  # continue while we go the the next time period or leave platform
                 func = ROUTE[item.cur_state]
                 args_list = getfullargspec(func).args  # get all method arguments
                 args = [{'item': item, 'market': market}[arg] for arg in args_list]
