@@ -2,16 +2,52 @@ import pandas as pd
 import datetime
 from collections import defaultdict
 import numpy as np
-from math import isnan
 import os
 import re
+from scipy import stats
+
+
+def add_retail_price(row):
+    if row['retail_price_refined'] is None:
+        key = (row['bags_color'], row['materials_list'], row['size'])
+        if key in model_stats:
+            return np.mean(model_stats[key])
+        else:
+            return np.mean(model_stats[row['size']])
+    else:
+        return row['retail_price_refined']
+
+def days_live(row):
+    if row['sc_date_first_date'] > first_date+datetime.timedelta(days=1):
+        if row['sc_date_last_date'] == last_date:
+            return [(row['sc_date_last_date']-row['sc_date']).days, 'Pending']
+        else:
+            return [(row['sc_date_last_date'] - row['sc_date']).days, 'Complete']
+    else:
+        return [None, None]
+
+def similar_stats(date, color, condition, material, size):
+    features = (date, color, condition, material, size)
+    if features in item_stats:
+        return pd.Series((len(item_stats[features]), np.mean(item_stats[features])))
+    else:
+        return pd.Series((0, np.mean(item_stats[(date, size, condition)])))
+
+
+def custom_percentile(date, color, condition, material, size, price):
+    features = (date, color, condition, material, size)
+    list_of_values = item_stats[features]
+    return stats.percentileofscore (list_of_values, price)
+
 
 if __name__ == '__main__':
 
-    data_dir = './data/'
-    brand = 'Chanel'
+    data_dir = '../data/'
+    brand = 'Fendi'
     df = pd.read_pickle(data_dir+'%s.pkl' % brand)
     print(df.shape)
+    print(min(df['sc_date']))
+    print(max(df['sc_date']))
 
     for file in [f for f in os.listdir(data_dir) if re.search('%s_search'%brand, f)]:
         search_df = pd.read_csv(data_dir+'%s' %file)
@@ -22,11 +58,17 @@ if __name__ == '__main__':
         keyword = 'search_' + file.split('_search_')[1][:-4]
         df[keyword] = df['sc_date'].map(search_dict)
 
-    # stats on similar items
-    item_stats = defaultdict(list)
-    for i, row in df[-df['bags_price_refined'].isnull()].iterrows():
-        key = (row['sc_date'], row['bags_color'], row['bags_condition'], row['materials_list'])
-        item_stats[key].append(row['bags_price_refined'])
+    # retail pricing stats for color+material
+    model_stats = defaultdict(list)
+    for i, row in df[['id', 'bags_color', 'materials_list', 'retail_price_refined', 'size']].\
+            drop_duplicates().iterrows():
+        if row['retail_price_refined'] is not None:
+            key = (row['bags_color'], row['materials_list'], row['size'])
+            model_stats[key].append(row['retail_price_refined'])
+            model_stats[row['size']].append(row['retail_price_refined'])
+
+    # add retail price if missing
+    df['retail_price_refined'] = df.apply(lambda x: add_retail_price(x), axis = 1)
 
     min_dates = pd.pivot_table(df, values='sc_date', index='id', aggfunc='min').reset_index()
     max_dates = pd.pivot_table(df[-df['bags_price_refined'].isnull()], values='sc_date', index='id',
@@ -39,53 +81,53 @@ if __name__ == '__main__':
     last_date = max(df['sc_date'])
 
     # df = df[df.apply(lambda x: x['sc_date'] == x['sc_date_first_date'], axis = 1)]
-    df = df[-df['sc_date_last_date'].isnull()]
 
-    def days_live(row):
-        if row['sc_date_first_date'] > first_date+datetime.timedelta(days=3):
-            if row['sc_date_last_date'] == last_date:
-                return [(row['sc_date_last_date']-row['sc_date']).days, 'Pending']
-            else:
-                return [(row['sc_date_last_date'] - row['sc_date']).days, 'Complete']
-         else:
-             return [None, None]
+    # remove items that were sold before we started tracking
+    df = df[-df['sc_date_last_date'].isnull()]
 
     df['lifetime'], df['status'] = zip(*df.apply(lambda x: days_live(x), axis = 1))
 
     df = df[-df['lifetime'].isnull()]
 
-    daily_likes = defaultdict(dict)
+    # daily_likes = defaultdict(dict)
+    #
+    # for i, row in df.iterrows():
+    #     daily_likes[row['id']][row['sc_date']] = row['likes']
+    #
+    # def avg_daily_likes(id, date, ndays):
+    #     d = daily_likes[id]
+    #     dates = [day for day in d.keys() if day <= date and \
+    #      date - datetime.timedelta(days=ndays) <= day]
+    #     if len(dates) > 1:
+    #         return (d[date] - d[min(dates)]) / (date - min(dates)).days
+    #     else:
+    #         return d[date]
+    #
+    # df['likes_last_1'] = df.apply(lambda x: avg_daily_likes(x['id'], x['sc_date'], 1), axis = 1)
+    # df['likes_last_7'] = df.apply(lambda x: avg_daily_likes(x['id'], x['sc_date'], 7), axis = 1)
+    # pricing stats on similar items for each day
 
-    for i, row in df.iterrows():
-        daily_likes[row['id']][row['sc_date']] = row['likes']
+    # if item was sold but put back on the next day
+    df['bags_price_refined'] = df.apply(lambda x: x['bags_price_refined'] if x['bags_price_refined'] is not None \
+                                        else x['sold_price_refined'], axis = 1)
+    df = df[-df['bags_price_refined'].isnull ()]
 
-    def avg_daily_likes(id, date, ndays):
-        d = daily_likes[id]
-        dates = [day for day in d.keys() if day <= date and \
-         date - datetime.timedelta(days=ndays) <= day]
-        if len(dates) > 1:
-            return (d[date] - d[min(dates)]) / (date - min(dates)).days
-        else:
-            return d[date]
-
-    df['likes_last_1'] = df.apply(lambda x: avg_daily_likes(x['id'], x['sc_date'], 1), axis = 1)
-    df['likes_last_7'] = df.apply(lambda x: avg_daily_likes(x['id'], x['sc_date'], 7), axis = 1)
-
-    def similar_stats(date, color, condition, material):
-        features = (date, color, condition, material)
-        return pd.Series((len(item_stats[features]), np.mean(item_stats[features])))
+    item_stats = defaultdict(list)
+    for i, row in df[-df['bags_price_refined'].isnull()].iterrows():
+        key = (row['sc_date'], row['bags_color'], row['bags_condition'], row['materials_list'], row['size'])
+        item_stats[key].append(row['bags_price_refined'])
+        item_stats[(row['sc_date'], row['size'], row['bags_condition'])].append(row['bags_price_refined'])
 
     df[['number_similar', 'avg_similar']] = df.apply(lambda x:
         similar_stats(x['sc_date'], x['bags_color'], x['bags_condition'],
-                      x['materials_list']), axis=1)
+                      x['materials_list'], x['size']), axis=1)
 
-    df['bags_price_refined'] = df.apply(lambda x: x['bags_price_refined'] if not isnan(x['bags_price_refined']) \
-                                        else x['sold_price_refined'], axis = 1)
     df['original_to_avg'] = df.apply(lambda x: x['bags_price_refined'] / x['avg_similar'], axis = 1)
-    df['retail_price_refined'] = df['retail_price_refined'].fillna(df['retail_price_refined'].mean())
+    df['price_to_retail'] = df.apply(lambda x: x['bags_price_refined'] / x['retail_price_refined'], axis = 1)
 
-    print(df['retail_price_refined'].isnull().sum())
-    # todo missing values for the field "retail_price_refined"
+    df['price_percentile'] = df.apply(lambda x:
+                                      custom_percentile(x['sc_date'], x['bags_color'], x['bags_condition'],
+                                                    x['materials_list'], x['size'], x['bags_price_refined']), axis=1)
 
-    df.to_pickle(data_dir+'%s_refined_new.pkl' %brand)
-
+    print(df.isnull().sum())
+    df.to_pickle(data_dir+'%s_refined.pkl' %brand)
