@@ -8,8 +8,8 @@ import re
 
 if __name__ == '__main__':
 
-    data_dir = '../data/'
-    brand = 'Fendi'
+    data_dir = './data/'
+    brand = 'Chanel'
     df = pd.read_pickle(data_dir+'%s.pkl' % brand)
     print(df.shape)
 
@@ -28,8 +28,9 @@ if __name__ == '__main__':
         key = (row['sc_date'], row['bags_color'], row['bags_condition'], row['materials_list'])
         item_stats[key].append(row['bags_price_refined'])
 
-    min_dates = pd.pivot_table(df, values='sc_date', index='id', aggfunc='min')
-    max_dates = pd.pivot_table(df[-df['bags_price_refined'].isnull()], values='sc_date', index='id', aggfunc='max')
+    min_dates = pd.pivot_table(df, values='sc_date', index='id', aggfunc='min').reset_index()
+    max_dates = pd.pivot_table(df[-df['bags_price_refined'].isnull()], values='sc_date', index='id',
+                               aggfunc='max').reset_index()
 
     df = pd.merge(df, max_dates, how='left', on='id',suffixes=('', '_last_date'))
     df = pd.merge(df, min_dates, how='left', on='id',suffixes=('', '_first_date'))
@@ -37,20 +38,21 @@ if __name__ == '__main__':
     first_date = min(df['sc_date'])
     last_date = max(df['sc_date'])
 
+    # df = df[df.apply(lambda x: x['sc_date'] == x['sc_date_first_date'], axis = 1)]
+    df = df[-df['sc_date_last_date'].isnull()]
+
     def days_live(row):
-        if row['sc_date_first_date'] == first_date and row['sc_date_last_date'] == last_date:
-            if row['sc_date'] <= first_date + datetime.timedelta(days=5):
-                return 1000
-        elif row['sc_date_first_date'] != first_date and row['sc_date_last_date'] != last_date and \
-            type(row['sc_date_last_date']) == datetime.date:
-            return (row['sc_date_last_date']-row['sc_date']).days
-        else:
-            return
+        if row['sc_date_first_date'] > first_date+datetime.timedelta(days=3):
+            if row['sc_date_last_date'] == last_date:
+                return [(row['sc_date_last_date']-row['sc_date']).days, 'Pending']
+            else:
+                return [(row['sc_date_last_date'] - row['sc_date']).days, 'Complete']
+         else:
+             return [None, None]
 
-    df['lifetime'] = df.apply(lambda x: days_live(x), axis = 1)
-    df['days_live'] = df.apply(lambda x: (x['sc_date'] - x['sc_date_first_date']).days, axis = 1)
+    df['lifetime'], df['status'] = zip(*df.apply(lambda x: days_live(x), axis = 1))
 
-    df = df[df['lifetime'] >= 0]
+    df = df[-df['lifetime'].isnull()]
 
     daily_likes = defaultdict(dict)
 
@@ -85,5 +87,5 @@ if __name__ == '__main__':
     print(df['retail_price_refined'].isnull().sum())
     # todo missing values for the field "retail_price_refined"
 
-    df.to_pickle(data_dir+'%s_refined.pkl' %brand)
+    df.to_pickle(data_dir+'%s_refined_new.pkl' %brand)
 
