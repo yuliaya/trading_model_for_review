@@ -2,9 +2,8 @@ import pandas as pd
 import datetime
 from collections import defaultdict
 import numpy as np
-import os
-import re
 from scipy import stats
+import pickle
 
 
 def add_retail_price(row):
@@ -43,20 +42,17 @@ def custom_percentile(date, color, condition, material, size, price):
 if __name__ == '__main__':
 
     data_dir = '../data/'
-    brand = 'Fendi'
+    brand = 'Saint Laurent'
     df = pd.read_pickle(data_dir+'%s.pkl' % brand)
     print(df.shape)
     print(min(df['sc_date']))
     print(max(df['sc_date']))
 
-    for file in [f for f in os.listdir(data_dir) if re.search('%s_search'%brand, f)]:
-        search_df = pd.read_csv(data_dir+'%s' %file)
-        search_df = search_df.reset_index()[1:]
-        search_df['index'] = pd.to_datetime(search_df['index'])
-        search_dict = dict(zip(search_df['index'],
-            [int(item) for item in search_df['Category: All categories']]))
-        keyword = 'search_' + file.split('_search_')[1][:-4]
-        df[keyword] = df['sc_date'].map(search_dict)
+    with open(data_dir+'search_trends.pkl', 'rb') as f:
+        trends_dict = pickle.load(f)
+
+    for keyword in list(trends_dict[brand].keys()):
+        df[keyword] = df['sc_date'].map(trends_dict[brand][keyword])
 
     # retail pricing stats for color+material
     model_stats = defaultdict(list)
@@ -84,6 +80,12 @@ if __name__ == '__main__':
 
     # remove items that were sold before we started tracking
     df = df[-df['sc_date_last_date'].isnull()]
+
+    # check if ever sold
+    never_sold_items = set(df[df['sc_date_last_date'] < last_date]['id']) - \
+                       set(df[-df['sold_price_refined'].isnull()]['id'])
+
+    df['ever_sold'] = df['id'].map(lambda x: 0 if x in never_sold_items else 1)
 
     df['lifetime'], df['status'] = zip(*df.apply(lambda x: days_live(x), axis = 1))
 
