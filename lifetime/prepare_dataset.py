@@ -42,7 +42,7 @@ def custom_percentile(date, color, condition, material, size, price):
 if __name__ == '__main__':
 
     data_dir = '../data/'
-    brand = 'Saint Laurent'
+    brand = 'Gucci'
     df = pd.read_pickle(data_dir+'%s.pkl' % brand)
     print(df.shape)
     print(min(df['sc_date']))
@@ -55,13 +55,23 @@ if __name__ == '__main__':
         df[keyword] = df['sc_date'].map(trends_dict[brand][keyword])
 
     # retail pricing stats for color+material
+
     model_stats = defaultdict(list)
     for i, row in df[['id', 'bags_color', 'materials_list', 'retail_price_refined', 'size']].\
             drop_duplicates().iterrows():
         if row['retail_price_refined'] is not None:
             key = (row['bags_color'], row['materials_list'], row['size'])
             model_stats[key].append(row['retail_price_refined'])
+            model_stats[(row['size'], row['materials_list'])].append(row['retail_price_refined'])
             model_stats[row['size']].append(row['retail_price_refined'])
+
+    with open(data_dir+'retail_prices.pkl', 'rb') as f:
+        retail_prices_dict = pickle.load(f)
+
+    retail_prices_dict[brand] = model_stats
+
+    with open(data_dir+'retail_prices.pkl', 'wb') as f:
+        pickle.dump(retail_prices_dict, f)
 
     # add retail price if missing
     df['retail_price_refined'] = df.apply(lambda x: add_retail_price(x), axis = 1)
@@ -82,14 +92,14 @@ if __name__ == '__main__':
     df = df[-df['sc_date_last_date'].isnull()]
 
     # check if ever sold
-    never_sold_items = set(df[df['sc_date_last_date'] < last_date]['id']) - \
+    never_sold_items = set(df['id']) - \
                        set(df[-df['sold_price_refined'].isnull()]['id'])
 
     df['ever_sold'] = df['id'].map(lambda x: 0 if x in never_sold_items else 1)
 
     df['lifetime'], df['status'] = zip(*df.apply(lambda x: days_live(x), axis = 1))
 
-    df = df[-df['lifetime'].isnull()]
+    # df = df[-df['lifetime'].isnull()]
 
     # daily_likes = defaultdict(dict)
     #
@@ -112,7 +122,7 @@ if __name__ == '__main__':
     # if item was sold but put back on the next day
     df['bags_price_refined'] = df.apply(lambda x: x['bags_price_refined'] if x['bags_price_refined'] is not None \
                                         else x['sold_price_refined'], axis = 1)
-    df = df[-df['bags_price_refined'].isnull ()]
+    df = df[-df['bags_price_refined'].isnull()]
 
     item_stats = defaultdict(list)
     for i, row in df[-df['bags_price_refined'].isnull()].iterrows():

@@ -1,27 +1,80 @@
-from typing import Type
-from utils.trading_item import TradingItem
 from utils.market_state import Market
-from lifetime.predict_lifetime import predict_lifetime
-from predict_price.future_price import future_price
+from utils.create_new_items import TradingItem
+from utils.create_new_items import max_item_price
+from lifetime.predict_lifetime import predict_lifetime, correct_lifetime_prediction
+import numpy
+from math import isnan
 
-def trading_algo(item: Type[TradingItem], market: Type[Market]):
 
-    #todo real algorithm
+def price_offer_decision(item: TradingItem, market: Market):
+    return item.price
 
-    if item.time_created + item.lifetime < item.cur_time:
-        item.cur_time += 1
-        item.likes += 1
-        new_lifetime = predict_lifetime(item, market)
-        if new_lifetime != item.lifetime:
-            item.price_predicted = future_price(item, market)
+def sell_items(market: Market, items_list: list, demand: int) -> (Market, int):
+    items_pred = [item.lifetime_prob_real for item in items_list]
+    weighted_pred = [el / sum(items_pred) for el in items_pred]
+    while demand > 0 and len(items_list) > 0:
+        sold_item_index = numpy.random.choice(range(len(items_list)), 1, p=weighted_pred)[0]
+        sold_item = items_list[sold_item_index]
+        if sold_item.possession == 'user':
+            sold_item.income = sold_item.price * market.platform_interest
+        elif sold_item.possession == 'platform':
+            sold_item.income = sold_item.price
+        sold_item.state = False
+        demand -= 1
+        del items_list[sold_item_index]
+        del items_pred[sold_item_index]
+        if sum(items_pred) > 0:
+            weighted_pred = [el / sum(items_pred) for el in items_pred]
+    return market, demand
 
-    else:
-        item.state = False
-        item.cur_state = 'sold'
-        if item.possession == 'user':
-            item.income = item.price_supply * market.platform_interest
+def trading_algo(market: Market, decision_threshold=0.2, min_margin=500) -> Market:
+
+    # STEP 1 - invest into new items
+    if market.invest:
+        new_items = [item for item in market.items if item.time_created_period == market.epoch]
+        for brand in [brand for brand in market.all_models if brand in market.lifetime_models]:
+            brand_ranking_list = sorted([item.lifetime_prob for item in market.items if item.state and
+                                         (item.cur_time_period - item.time_created_period) <= 30 and
+                                         item.cur_time_period == market.epoch and item.brand == brand and
+                                         item.lifetime_prob >= 0.5], reverse=True)
+            future_demand_expected = market.demand_30d_predictions_expected[brand][market.epoch]
+            demand_threshold = int(future_demand_expected * decision_threshold)
+            if demand_threshold > 0:
+                for item in [item for item in new_items if item.brand == brand]:
+                    if len(brand_ranking_list) > 0:
+                        marginal_pred = brand_ranking_list[min([demand_threshold-1, len(brand_ranking_list) - 1])]
+                    else:
+                        marginal_pred = 0.5
+                    if item.lifetime_prob > marginal_pred:
+                        max_price = max_item_price(item, market, marginal_pred)
+                        offered_price = price_offer_decision(item, market)
+                        if offered_price >= item.owner.min_price and max_price - item.owner.min_price >= min_margin:
+                            item.cost = offered_price * (1 - market.platform_interest)
+                            item.price = max_price
+                            item.possession = 'platform'
+                            item.lifetime_prob = predict_lifetime(item, market)
+                            item.lifetime_prob_real = correct_lifetime_prediction(market, item, item.lifetime_prob)
+
+    # STEP 2 - check what is sold today
+    for brand in market.all_models:
+        cur_demand = market.demand_predictions_real[brand][market.epoch]
+        if cur_demand > 0:
+            best_items_list = [item for item in market.items if item.state and
+                               (item.cur_time_period - item.time_created_period) <= 30 and
+                               item.cur_time_period == market.epoch and item.brand == brand and
+                               item.lifetime_prob >= 0.5]
+            market, cur_demand = sell_items(market, best_items_list, cur_demand)
+        if cur_demand > 0:
+            rest_items_list = [item for item in market.items if item.state and
+                               item.cur_time_period == market.epoch and item.brand == brand]
+            market, cur_demand = sell_items(market, rest_items_list, cur_demand)
+
+    # STEP 3 - check who left the platform or next epoch for active
+    for item in [item for item in market.items if item.state and item.cur_time_period == market.epoch]:
+        if item.owner.days_abandoned <= item.cur_time_period - item.time_created_period:
+            item.state = False
         else:
-            item.income = item.price_supply
+            item.cur_time_period += 1
 
-    return item
+    return market
 

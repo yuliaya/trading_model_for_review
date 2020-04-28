@@ -1,6 +1,6 @@
 from lifetime.predict_lifetime import predict_lifetime
-from predict_price.future_price import future_price
-from predict_price.transactional_pricing import transactional_pricing
+from predict_demand.future_price import future_price
+from predict_demand.transactional_pricing import transactional_pricing
 from decision_making.decision import check_invest_interest, user_decision, check_if_worth_selling
 from decision_making.market_engine import trading_algo
 
