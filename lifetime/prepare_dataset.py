@@ -26,11 +26,19 @@ def days_live(row):
         return [None, None]
 
 def similar_stats(date, color, condition, material, size):
-    features = (date, color, condition, material, size)
-    if features in item_stats:
-        return pd.Series((len(item_stats[features]), np.mean(item_stats[features])))
-    else:
-        return pd.Series((0, np.mean(item_stats[(date, size, condition)])))
+    keys = [(date, size, material, condition, color),
+            (date, size, material, condition),
+            (date, size, material),
+            (date, size, condition),
+            (date, material, condition),
+            (date, material),
+            (date, size)]
+    for key in keys:
+        if key in item_stats:
+            if key == (date, size, material, condition, color):
+                return pd.Series((len(item_stats[key]), np.mean(item_stats[key])))
+            else:
+                return pd.Series(0, np.mean(item_stats[key]))
 
 
 def custom_percentile(date, color, condition, material, size, price):
@@ -42,7 +50,7 @@ def custom_percentile(date, color, condition, material, size, price):
 if __name__ == '__main__':
 
     data_dir = '../data/'
-    brand = 'Gucci'
+    brand = 'Fendi'
     df = pd.read_pickle(data_dir+'%s.pkl' % brand)
     print(df.shape)
     print(min(df['sc_date']))
@@ -126,13 +134,19 @@ if __name__ == '__main__':
 
     item_stats = defaultdict(list)
     for i, row in df[-df['bags_price_refined'].isnull()].iterrows():
-        key = (row['sc_date'], row['bags_color'], row['bags_condition'], row['materials_list'], row['size'])
-        item_stats[key].append(row['bags_price_refined'])
-        item_stats[(row['sc_date'], row['size'], row['bags_condition'])].append(row['bags_price_refined'])
+        keys = [(row['sc_date'], row['size'], row['materials_list'], row['bags_condition'], row['bags_color']),
+                (row['sc_date'], row['size'], row['materials_list'], row['bags_condition']),
+                (row['sc_date'], row['size'], row['materials_list']),
+                (row['sc_date'], row['size'], row['bags_condition']),
+                (row['sc_date'], row['materials_list'], row['bags_condition']),
+                (row['sc_date'], row['materials_list']),
+                (row['sc_date'], row['size'])]
+        for key in keys:
+            item_stats[key].append(row['bags_price_refined'])
 
     df[['number_similar', 'avg_similar']] = df.apply(lambda x:
-        similar_stats(x['sc_date'], x['bags_color'], x['bags_condition'],
-                      x['materials_list'], x['size']), axis=1)
+                                                     similar_stats(x['sc_date'], x['bags_color'], x['bags_condition'],
+                                                                   x['materials_list'], x['size']), axis=1)
 
     df['original_to_avg'] = df.apply(lambda x: x['bags_price_refined'] / x['avg_similar'], axis = 1)
     df['price_to_retail'] = df.apply(lambda x: x['bags_price_refined'] / x['retail_price_refined'], axis = 1)

@@ -10,15 +10,20 @@ def predict_demand(market: Market, brand: str, delta: int) -> (int, int):
     features_dict = {}
     for search in market.search_trends[brand].keys():
         features_dict['%s_0' % search] = market.search_trends[brand][search][market.cur_date +
-                                                                             timedelta (days=delta)]
+                                                                             timedelta(days=delta)]
         features_dict['%s_7' % search] = market.search_trends[brand][search][market.cur_date +
-                                                                             timedelta (days=delta - 7)]
+                                                                             timedelta(days=delta - 7)]
         features_dict['%s_14' % search] = market.search_trends[brand][search][market.cur_date +
-                                                                              timedelta (days=delta - 14)]
+                                                                              timedelta(days=delta - 14)]
     features_dict['supply_7'] = len([item for item in market.items if delta - 7 <= item.time_created_period < delta and
                                      item.brand == brand])
-    features_dict['supply_7_prices'] = np.mean([item.price for item in market.items if
-                                                delta - 7 <= item.time_created_period < delta and item.brand == brand])
+    if len([item.price for item in market.items if delta - 7 <= item.time_created_period < delta
+                                                   and item.brand == brand]) > 0:
+        features_dict['supply_7_prices'] = np.mean([item.price for item in market.items if
+                                                    delta - 7 <= item.time_created_period < delta
+                                                    and item.brand == brand])
+    else:
+        features_dict['supply_7_prices'] = 0
     demand_basic = [item for item in market.items if item.brand == brand and
                     delta - 14 <= item.cur_time_period < delta - 7 and not item.state and item.income > 0]
     demand_current = [item for item in market.items if item.brand == brand and
@@ -39,18 +44,17 @@ def predict_demand(market: Market, brand: str, delta: int) -> (int, int):
         pls_df = pd.DataFrame({feature: [features_dict.get(feature)] for feature in models['pls']['features']})
         pls_pred = models['pls']['spec'].predict(pls_df)[0][0]
 
-    error = np.random.exponential(models['best_model']['rmse'], 1)[0]
-    sign = np.random.choice([1, -1], p=[0.5, 0.5])
+    error = np.random.normal(0, models['best_model']['rmse'])
 
     if best_model == 'xgbr':
-        return round(xgbr_pred), round(xgbr_pred + error * sign, 0)
+        return round(xgbr_pred, 0), round(xgbr_pred + error, 0)
     elif best_model == 'mlr':
-        return round(mlr_pred), round(mlr_pred + error * sign, 0)
+        return round(mlr_pred, 0), round(mlr_pred + error, 0)
     elif best_model == 'pls':
-        return round(pls_pred), round(pls_pred + error * sign, 0)
+        return round(pls_pred, 0), round(pls_pred + error, 0)
     elif best_model == 'ensemble':
-        return round((xgbr_pred + mlr_pred + pls_pred) / 3), \
-               round((xgbr_pred + mlr_pred + pls_pred) / 3 + error * sign, 0)
+        return round ((xgbr_pred + mlr_pred + pls_pred) / 3, 0),\
+               round((xgbr_pred + mlr_pred + pls_pred) / 3 + error, 0)
 
 
 def initial_demand_predict(market: Market):
@@ -68,6 +72,12 @@ def initial_demand_predict(market: Market):
             market.demand_30d_predictions_real[brand][epoch] = sum(
                 [brand_dict[e] for e in range(epoch + 1, epoch + 31)])
             market.demand_30d_predictions_expected[brand][epoch] = market.demand_30d_predictions_real[brand][epoch]
+
+
+    if market.demand_rmse_to_avg is not None:
+        for brand in market.all_models:
+            avg = np.mean(list(market.demand_30d_predictions_real[brand].values()))
+            market.demand_models[brand]['best_model']['rmse'] = avg * market.demand_rmse_to_avg
 
     for epoch in range(-30, 0):
         for brand in market.all_models:

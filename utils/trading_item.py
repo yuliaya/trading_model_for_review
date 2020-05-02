@@ -1,10 +1,20 @@
+import numpy
+from utils.market_state import Market
+
 class User:
     '''
     Evaluated behavior segment of a user
     '''
-    def __init__(self, segment: str = 'trader'):
-        self.segment = segment
-        self.min_price = None
+    def __init__(self, market: Market):
+        if market.segmentation:
+            segments = list(market.segments.keys())
+            segments_p = [market.segments[s]['p'] for s in segments]
+            self.segment = numpy.random.choice(segments, p=segments_p)
+        else:
+            segments = list(market.segments.keys())
+            self.segment = segments[0]
+        self.max_reduce = numpy.random.uniform(low=0.9 - market.segments[self.segment]['reduce_math_exp'],
+                                               high=1.1 - market.segments[self.segment]['reduce_math_exp'])
         self.days_abandoned = None
 
     def __str__(self):
@@ -21,13 +31,13 @@ class TradingItem:
     '''
 
     def __init__(self,
+                 market: Market,
                  time_created_period: int,
                  brand: str = 'Chanel',
                  color: str = 'black',
                  size: str = 'Medium',
                  material: str = 'lamb skin',
-                 condition: str = 'new with tags',
-                 owner=User(),
+                 condition: str = 'new with tags'
                  ):
         self.brand = brand
         self.color = color
@@ -43,20 +53,16 @@ class TradingItem:
         self.lifetime_prob_real = None  # correct probability after considering error
         self.price = None
         self.retail_price = None  # retail price of median retail of a similar
-        #self.max_price = None  # maximum price so that the item can be sold in the next 30 days
-        self.owner = owner  # defines a user segment the owner belongs to
+        self.owner = User(market)  # defines a user segment the owner belongs to
         self.state = True  # defines if item is live in the system or already left
-        #self.cur_state = 'start'  # a stage of item life
+
 
     def __str__(self):
-        output = \
+        output = 'Item created at %s epoch. \n' % self.time_created_period + \
         '%s bag.\nSize: %s. Color: %s. Meterial: %s. Condition: %s.\nOwner: a user from %s segment.\n' \
         % (self.brand, self.size, self.color, self.material, self.condition, self.owner) + \
-        (('Prob to leave in 30 days: %d\n' % self.lifetime_prob) if self.lifetime_prob else '')+ \
-        (('Retail price: %d.\n' % self.retail_price) if self.retail_price else '') + \
-        (('Max price: %d.\n' % self.max_price) if self.max_price else '') + \
-        'Belongs to: %s\nCurrent state: %s' %(self.possession, self.cur_state)
-
+        'Prob to leave in 30 days: %s\n' % self.lifetime_prob_real+ \
+        'Price: %d.\n' % self.price + 'Belongs to: %s \n\n' %self.possession
         return(output)
 
 

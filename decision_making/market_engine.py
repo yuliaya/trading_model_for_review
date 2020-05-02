@@ -7,7 +7,11 @@ from math import isnan
 
 
 def price_offer_decision(item: TradingItem, market: Market):
-    return item.price
+    if market.segmentation:
+        segment = item.owner.segment
+    else:
+        segment = list(market.segments.keys())[0]  # major segment
+    return item.price * (1 - market.segments[segment]['reduce_math_exp'])  # segment reduce math exp
 
 def sell_items(market: Market, items_list: list, demand: int) -> (Market, int):
     items_pred = [item.lifetime_prob_real for item in items_list]
@@ -23,11 +27,11 @@ def sell_items(market: Market, items_list: list, demand: int) -> (Market, int):
         demand -= 1
         del items_list[sold_item_index]
         del items_pred[sold_item_index]
-        if sum(items_pred) > 0:
+        if len(items_list) > 0:
             weighted_pred = [el / sum(items_pred) for el in items_pred]
     return market, demand
 
-def trading_algo(market: Market, decision_threshold=0.2, min_margin=500) -> Market:
+def trading_algo(market: Market) -> Market:
 
     # STEP 1 - invest into new items
     if market.invest:
@@ -38,7 +42,7 @@ def trading_algo(market: Market, decision_threshold=0.2, min_margin=500) -> Mark
                                          item.cur_time_period == market.epoch and item.brand == brand and
                                          item.lifetime_prob >= 0.5], reverse=True)
             future_demand_expected = market.demand_30d_predictions_expected[brand][market.epoch]
-            demand_threshold = int(future_demand_expected * decision_threshold)
+            demand_threshold = int(future_demand_expected * market.decision_threshold)
             if demand_threshold > 0:
                 for item in [item for item in new_items if item.brand == brand]:
                     if len(brand_ranking_list) > 0:
@@ -48,7 +52,8 @@ def trading_algo(market: Market, decision_threshold=0.2, min_margin=500) -> Mark
                     if item.lifetime_prob > marginal_pred:
                         max_price = max_item_price(item, market, marginal_pred)
                         offered_price = price_offer_decision(item, market)
-                        if offered_price >= item.owner.min_price and max_price - item.owner.min_price >= min_margin:
+                        min_price = item.price * item.owner.max_reduce
+                        if offered_price >= min_price and max_price - offered_price >= market.min_margin:
                             item.cost = offered_price * (1 - market.platform_interest)
                             item.price = max_price
                             item.possession = 'platform'
@@ -62,8 +67,9 @@ def trading_algo(market: Market, decision_threshold=0.2, min_margin=500) -> Mark
             best_items_list = [item for item in market.items if item.state and
                                (item.cur_time_period - item.time_created_period) <= 30 and
                                item.cur_time_period == market.epoch and item.brand == brand and
-                               item.lifetime_prob >= 0.5]
-            market, cur_demand = sell_items(market, best_items_list, cur_demand)
+                               item.lifetime_prob_real >= 0.5]
+            if len(best_items_list) > 0:
+                market, cur_demand = sell_items(market, best_items_list, cur_demand)
         if cur_demand > 0:
             rest_items_list = [item for item in market.items if item.state and
                                item.cur_time_period == market.epoch and item.brand == brand]
@@ -71,7 +77,7 @@ def trading_algo(market: Market, decision_threshold=0.2, min_margin=500) -> Mark
 
     # STEP 3 - check who left the platform or next epoch for active
     for item in [item for item in market.items if item.state and item.cur_time_period == market.epoch]:
-        if item.owner.days_abandoned <= item.cur_time_period - item.time_created_period:
+        if item.owner.days_abandoned <= item.cur_time_period - item.time_created_period and item.possession == 'user':
             item.state = False
         else:
             item.cur_time_period += 1

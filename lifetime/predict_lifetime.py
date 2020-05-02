@@ -3,17 +3,26 @@ from utils.market_state import Market
 import pandas as pd
 import numpy
 import random
+from statistics import stdev
+from math import inf
 
 def similar_stats(item: TradingItem, market: Market):
-    similar_items = [i for i in market.items if item.brand == i.brand and item.color == i.color and
-                item.condition == i.condition and item.material == i.material and item.size == i.size and
-                i.state]
-    if len(similar_items) > 0:
-        return len(similar_items), numpy.mean([item.price for item in similar_items])
-    else:
-        similar_items = [i for i in market.items if item.brand == i.brand and item.condition == i.condition
-                         and item.size == i.size and i.state]
-        return 0, numpy.mean([item.price for item in similar_items])
+    keys = [(item.size, item.material, item.condition, item.color),
+            (item.size, item.material, item.condition),
+            (item.size, item.material),
+            (item.size, item.condition),
+            (item.material, item.condition),
+            (item.material),
+            (item.size)]
+
+    for key in keys:
+        if key in market.median_prices[item.brand]:
+            if key == (item.size, item.material, item.condition, item.color):
+                return len(market.median_prices[item.brand][key]),\
+                       numpy.mean(market.median_prices[item.brand][key])
+            else:
+                return 0, numpy.mean(market.median_prices[item.brand][key])
+    return
 
 def retail_price(item: TradingItem, market: Market):
     if (item.color, item.material, item.size) in market.retail_prices_dict[item.brand]:
@@ -23,40 +32,41 @@ def retail_price(item: TradingItem, market: Market):
     else:
         return random.choice(market.retail_prices_dict[item.brand][item.size])
 
-def median_price(item: TradingItem, market: Market):
-    key = (item.size, item.material, item.condition, item.color)
-    if key in market.median_prices[item.brand].keys():
-        return numpy.mean(market.median_prices[item.brand][key])
+def establish_median_price(item: TradingItem, market: Market):
+    keys = [(item.size, item.material, item.condition, item.color),
+            (item.size, item.material, item.condition),
+            (item.size, item.material),
+            (item.size, item.condition),
+            (item.material, item.condition),
+            item.material,
+            item.size]
 
-    key = (item.size, item.material, item.condition)
-    if key in market.median_prices[item.brand].keys ():
-        return numpy.mean(market.median_prices[item.brand][key])
-
-    key = (item.size, item.material)
-    if key in market.median_prices[item.brand].keys ():
-        return numpy.mean(market.median_prices[item.brand][key])
-
-    key = (item.size, item.condition)
-    if key in market.median_prices[item.brand].keys():
-        return numpy.mean(market.median_prices[item.brand][key])
-
-    key = item.material
-    if key in market.median_prices[item.brand].keys():
-        return numpy.mean(market.median_prices[item.brand][key])
-
-    key = item.size
-    if key in market.median_prices[item.brand].keys():
-        return numpy.mean(market.median_prices[item.brand][key])
+    for key in keys:
+        if key in market.median_prices[item.brand].keys():
+            key_list = market.median_prices[item.brand][key]
+            if len(key_list) > 1:
+                price = numpy.mean(key_list)
+                std_dev = stdev(key_list)
+                return_price = -inf
+                while return_price < 0:
+                    return_price = price + numpy.random.normal(0, std_dev)
+                return return_price
 
 def correct_lifetime_prediction(market: Market, item: TradingItem, pred: float):
     if market.lifetime_models is None:
         return 0
     elif round(pred, 0) == 1 and item.brand in market.lifetime_models:
-        class1_precision = market.lifetime_models[item.brand]['precision_class1']
+        if market.lifetime_accuracy is None:
+            class1_precision = market.lifetime_models[item.brand]['precision_class1']
+        else:
+            class1_precision = market.lifetime_accuracy
         return numpy.random.choice([numpy.random.uniform (0, 0.5, 1)[0], pred],
                                     p=(1 - class1_precision, class1_precision))
     elif round(pred, 0) == 0 and item.brand in market.lifetime_models:
-        class0_precision = market.lifetime_models[item.brand]['precision_class0']
+        if market.lifetime_accuracy is None:
+            class0_precision = market.lifetime_models[item.brand]['precision_class0']
+        else:
+            class0_precision = market.lifetime_accuracy
         return numpy.random.choice ([pred, numpy.random.uniform (0.5, 1, 1)[0]],
                                     p=(class0_precision, 1 - class0_precision))
     else:
@@ -95,7 +105,10 @@ def predict_lifetime(item: TradingItem, market:Market):
             else:
                 feature_dict['size_loo'] = market.encoders[item.brand]['no_size']
         if 'original_to_avg' in features:
-            feature_dict['original_to_avg'] = item.price / similar_stats(item, market)[1]
+            try:
+                feature_dict['original_to_avg'] = item.price / similar_stats(item, market)[1]
+            except:
+                pass
         if 'price_to_retail' in features:
             feature_dict['price_to_retail'] = item.price / item.retail_price
         if 'const' in features:

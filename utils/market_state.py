@@ -1,13 +1,9 @@
 import pickle
-from utils.trading_item import TradingItem
-from typing import List
 import datetime
 import numpy
 import pandas as pd
 from collections import defaultdict
 import copy
-from math import isnan
-
 
 class Market:
     '''
@@ -17,8 +13,23 @@ class Market:
                  lifetime_period: int = 1,
                  platform_interest: float = 0.2,
                  cur_date=datetime.date(2019, 1, 1),
-                 invest: bool = True):
+                 invest: bool = True,
+                 decision_threshold: float = 0.2,
+                 segmentation: bool = False,
+                 segments: dict = {'general': {'p': 1, 'reduce_math_exp': 0.1}},
+                 lifetime_accuracy: float = None,
+                 demand_rmse_to_avg: float = None,
+                 min_margin: int = 100,
+                 max_margin: int = 1000
+    ):
         self.invest = invest
+        self.decision_threshold = decision_threshold  # investment decision threshold for % of top items
+        self.segmentation = segmentation
+        self.segments = segments
+        self.lifetime_accuracy = lifetime_accuracy  # accuracy of lifetime prediction model
+        self.demand_rmse_to_avg = demand_rmse_to_avg  # accuracy of demand prediction model
+        self.min_margin = min_margin  # min expected margin on a bought item
+        self.max_margin = max_margin  # max price increase of a bought item
         self.epoch = 0
         self.lifetime_period = lifetime_period  # number of epochs
         self.platform_interest = platform_interest  # commission for trading
@@ -27,7 +38,7 @@ class Market:
             model_parameters = pickle.load(f)
         self.all_models = list(model_parameters.keys())
         self.model_general_parameters = model_parameters
-        self.items: List[TradingItem] = []
+        self.items = list()
         with open('./predict_demand/demand_models_spec.pkl', 'rb') as f:
             demand_models = pickle.load(f)
         self.demand_models = demand_models
@@ -85,17 +96,17 @@ class Market:
         for brand in self.all_models:
             median_prices[brand] = defaultdict(list)
         for item in [item for item in self.items if item.state and item.cur_time_period == self.epoch]:
-                median_prices[item.brand][(item.size, item.material)].append(item.price)
-                median_prices[item.brand][(item.size, item.material,
-                                      item.condition)].append(item.price)
-                median_prices[item.brand][(item.size, item.material,
-                                      item.condition, item.color)].append(item.price)
-                median_prices[item.brand][(item.size, item.condition)].append(item.price)
-                median_prices[item.brand][item.material].append(item.price)
-                median_prices[item.brand][item.size].append(item.price)
-        for brand in list(median_prices.keys()):
-            for l in list(median_prices[brand].keys()):
-                median_prices[brand][l] = numpy.median(median_prices[brand][l])
+            keys = [(item.size, item.material, item.condition, item.color),
+                    (item.size, item.material, item.condition),
+                    (item.size, item.material),
+                    (item.size, item.condition),
+                    (item.material, item.condition),
+                    (item.material),
+                    (item.size)]
+            for key in keys:
+                median_prices[item.brand][key].append(item.price)
+        if len(median_prices['Fendi']) == 0:
+            pass
         self.median_prices = copy.deepcopy(median_prices)
 
 

@@ -6,7 +6,7 @@ import os
 import pandas as pd
 import re
 from datetime import timedelta, date
-from lifetime.predict_lifetime import predict_lifetime, median_price, retail_price, correct_lifetime_prediction
+from lifetime.predict_lifetime import predict_lifetime, establish_median_price, retail_price, correct_lifetime_prediction
 import copy
 from math import isnan
 
@@ -15,7 +15,7 @@ def user_min_price(item: TradingItem, market: Market):
     return item.price
 
 def establish_price(item: TradingItem, market: Market):
-    price = median_price(item, market)
+    price = establish_median_price(item, market)
     return price
 
 def initiate_items_list(market):
@@ -35,7 +35,7 @@ def initiate_items_list(market):
         brand = brand_file.split('_')[0]
         if market.lifetime_models is not None and brand in market.lifetime_models.keys():
             prob_df = market.lifetime_models[brand]['test_reults_df']
-            best_model = re.search('(.*)_pred', market.lifetime_models[brand]['name']).group(1)
+            best_model = re.search("(.*)_pred", market.lifetime_models[brand]['name']).group(1)
             item_probs = dict(zip(prob_df['id'], prob_df['%s_prob' % best_model]))
         else:
             item_probs = None
@@ -54,7 +54,8 @@ def initiate_items_list(market):
                     time_created_period = (row['sc_date_first_date'] - min_df_date).days - 45
                 if row['sc_date_last_date'] < min_df_date + timedelta(days=45):
                     cur_time_period = (row['sc_date_last_date'] - (min_df_date + timedelta(days=45))).days
-                new_item = TradingItem(time_created_period=time_created_period,
+                new_item = TradingItem(market=market,
+                                       time_created_period=time_created_period,
                                        brand=row['bags_brand'],
                                        color=row['bags_color'],
                                        size=row['size'],
@@ -101,20 +102,20 @@ def create_items(market: Market):
         for i in range(model_new_amount):
             bags_size = numpy.random.choice(list(model_params['sizes'].keys()),
                                              p=list(model_params['sizes'].values()))
-            bags_condition = numpy.random.choice(list (model_params['conditions'].keys ()),
-                                              p=list (model_params['conditions'].values ()))
-            bags_material = numpy.random.choice(list (model_params['materials'].keys ()),
-                                              p=list (model_params['materials'].values ()))
-            bags_color = numpy.random.choice(list (model_params['colors'].keys ()),
-                                              p=list (model_params['colors'].values ()))
+            bags_condition = numpy.random.choice(list(model_params['conditions'].keys()),
+                                              p=list(model_params['conditions'].values()))
+            bags_material = numpy.random.choice(list(model_params['materials'].keys()),
+                                              p=list(model_params['materials'].values()))
+            bags_color = numpy.random.choice(list (model_params['colors'].keys()),
+                                              p=list(model_params['colors'].values()))
             # print(bags_size, bags_condition, bags_material, bags_color)
-            new_item = TradingItem(time_created_period=market.epoch,
+            new_item = TradingItem(market=market,
+                                   time_created_period=market.epoch,
                                    brand=model,
                                    color=bags_color,
                                    size=bags_size,
                                    material=bags_material,
-                                   condition=bags_condition,
-                                   owner=User())
+                                   condition=bags_condition)
             new_item.price = establish_price(new_item, market)
             new_item.retail_price = retail_price(new_item, market)
             ab_scale = market.model_general_parameters[model]['days_abandoned_exp_scale']
@@ -124,13 +125,16 @@ def create_items(market: Market):
             new_item.lifetime_prob_real = correct_lifetime_prediction(market, new_item, new_item.lifetime_prob)
             new_item.owner.min_price = user_min_price(new_item, market)
             new_items_list.append(new_item)
+            if new_item.price is None:
+                pass
     market.items.extend(new_items_list)
 
     return market
 
 
-def max_item_price(item: TradingItem, market: Market, marginal_pred: float, limit_delta=1000):
+def max_item_price(item: TradingItem, market: Market, marginal_pred: float):
     new_item = copy.deepcopy(item)
-    while predict_lifetime(new_item,market) >= marginal_pred and (new_item.price - item.price) <= limit_delta:
+    while predict_lifetime(new_item,market) >= marginal_pred and\
+            (new_item.price - item.price) <= market.max_margin:
         new_item.price += 100
     return new_item.price - 100
