@@ -14,7 +14,6 @@ class Market:
                  platform_interest: float = 0.2,
                  cur_date=datetime.date(2019, 1, 1),
                  invest: bool = True,
-                 decision_threshold: float = 0.2,
                  segmentation: bool = False,
                  segments: dict = {'general': {'p': 1, 'reduce_math_exp': 0.1}},
                  lifetime_accuracy: float = None,
@@ -23,7 +22,7 @@ class Market:
                  max_margin: int = 1000
     ):
         self.invest = invest
-        self.decision_threshold = decision_threshold  # investment decision threshold for % of top items
+        self.decision_threshold = 1  # investment decision threshold for % of top items
         self.segmentation = segmentation
         self.segments = segments
         self.lifetime_accuracy = lifetime_accuracy  # accuracy of lifetime prediction model
@@ -101,13 +100,13 @@ class Market:
                     (item.size, item.material),
                     (item.size, item.condition),
                     (item.material, item.condition),
-                    (item.material),
-                    (item.size)]
+                    item.material,
+                    item.size]
             for key in keys:
                 median_prices[item.brand][key].append(item.price)
-        if len(median_prices['Fendi']) == 0:
-            pass
-        self.median_prices = copy.deepcopy(median_prices)
+        for brand in self.all_models:
+            if len(median_prices[item.brand]) > 0:
+                self.median_prices[brand] = copy.deepcopy(median_prices[brand])
 
 
 if __name__ == '__main__':

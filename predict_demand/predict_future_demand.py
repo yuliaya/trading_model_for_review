@@ -53,7 +53,7 @@ def predict_demand(market: Market, brand: str, delta: int) -> (int, int):
     elif best_model == 'pls':
         return round(pls_pred, 0), round(pls_pred + error, 0)
     elif best_model == 'ensemble':
-        return round ((xgbr_pred + mlr_pred + pls_pred) / 3, 0),\
+        return round((xgbr_pred + mlr_pred + pls_pred) / 3, 0),\
                round((xgbr_pred + mlr_pred + pls_pred) / 3 + error, 0)
 
 

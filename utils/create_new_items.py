@@ -8,11 +8,7 @@ import re
 from datetime import timedelta, date
 from lifetime.predict_lifetime import predict_lifetime, establish_median_price, retail_price, correct_lifetime_prediction
 import copy
-from math import isnan
 
-
-def user_min_price(item: TradingItem, market: Market):
-    return item.price
 
 def establish_price(item: TradingItem, market: Market):
     price = establish_median_price(item, market)
@@ -45,7 +41,6 @@ def initiate_items_list(market):
 
         existing_items = set()
         for i, row in cur_df.iterrows():
-            time_created_period = None
             cur_time_period = None
             if row['id'] not in existing_items:
                 if row['sc_date_first_date'] <= min_df_date:
@@ -117,16 +112,14 @@ def create_items(market: Market):
                                    material=bags_material,
                                    condition=bags_condition)
             new_item.price = establish_price(new_item, market)
+            if new_item.price is None:
+                pass
             new_item.retail_price = retail_price(new_item, market)
             ab_scale = market.model_general_parameters[model]['days_abandoned_exp_scale']
             new_item.owner.days_abandoned = round(numpy.random.exponential(ab_scale), 0)
-            new_item.owner.min_price = new_item.price
             new_item.lifetime_prob = predict_lifetime(new_item, market)
             new_item.lifetime_prob_real = correct_lifetime_prediction(market, new_item, new_item.lifetime_prob)
-            new_item.owner.min_price = user_min_price(new_item, market)
             new_items_list.append(new_item)
-            if new_item.price is None:
-                pass
     market.items.extend(new_items_list)
 
     return market
