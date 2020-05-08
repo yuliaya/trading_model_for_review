@@ -22,7 +22,9 @@ def similar_stats(item: TradingItem, market: Market):
                        numpy.mean(market.median_prices[item.brand][key])
             else:
                 return 0, numpy.mean(market.median_prices[item.brand][key])
-    return
+
+    return 0, numpy.mean([i.price for i in market.items if
+                          i.brand == item.brand and i.cur_time_period == market.epoch])
 
 def retail_price(item: TradingItem, market: Market):
     if (item.color, item.material, item.size) in market.retail_prices_dict[item.brand]:
@@ -51,6 +53,23 @@ def establish_median_price(item: TradingItem, market: Market):
                 while return_price < 0:
                     return_price = price + numpy.random.normal(0, std_dev)
                 return return_price
+            elif len(key_list) == 1:
+                price = numpy.mean(key_list)
+                if len([i.price for i in market.items if i.brand == item.brand and
+                                 i.cur_time_period == market.epoch]) > 1:
+                    std_dev = stdev([i.price for i in market.items if i.brand == item.brand and
+                                     i.cur_time_period == market.epoch])
+                elif len([i.price for i in market.items if i.brand == item.brand]) > 1:
+                    std_dev = stdev([i.price for i in market.items if i.brand == item.brand])
+                if std_dev:
+                    return_price = -inf
+                    while return_price < 0:
+                        return_price = price + numpy.random.normal(0, std_dev)
+                    return return_price
+
+    return numpy.median([i.price for i in market.items if i.brand == item.brand and
+                      i.cur_time_period > market.epoch - 5])
+
 
 def correct_lifetime_prediction(market: Market, item: TradingItem, pred: float):
     if market.lifetime_models is None:
