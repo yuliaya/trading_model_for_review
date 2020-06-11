@@ -17,29 +17,25 @@ def run_simulator(market: Market) -> pd.DataFrame:
     cost_list = []
     profit_list = []
     while market.epoch <= market.lifetime_period:
-        print('Current date: %s' % market.cur_date)
-        print('Epoch: %s' % market.epoch)
+        # print('Current date: %s' % market.cur_date)
+        # print('Epoch: %s' % market.epoch)
         market.update_median_prices()
         market = create_items(market)
-        if len([item for item in market.items if isnan(item.price)]):
-            pass
         market = daily_demand_predict(market)
         market = trading_algo(market)
-        if len([item for item in market.items if isnan(item.price)]):
-            pass
         income = sum([item.income for item in market.items if item.cur_time_period >= 0])
         income_list.append(income)
         cost = sum([item.cost for item in market.items])
         cost_list.append(cost)
         profit = income - cost
         profit_list.append(profit)
-        print('Incomes: %s' % income)
-        print('Cost: %s' % cost)
-        print('Profit: %s' % profit)
-        print('Sold today: %s' % len([item for item in market.items if item.cur_time_period == market.epoch and
-                                      not item.state and item.income > 0]))
-        print('Left today: %s' % len([item for item in market.items if item.cur_time_period == market.epoch and
-                                      not item.state and item.income == 0]))
+        # print('Incomes: %s' % income)
+        # print('Cost: %s' % cost)
+        # print('Profit: %s' % profit)
+        # print('Sold today: %s' % len([item for item in market.items if item.cur_time_period == market.epoch and
+        #                               not item.state and item.income > 0]))
+        # print('Left today: %s' % len([item for item in market.items if item.cur_time_period == market.epoch and
+        #                               not item.state and item.income == 0]))
         market.epoch += 1
         market.cur_date = market.cur_date + timedelta(days=1)
 
@@ -63,10 +59,11 @@ if __name__ == '__main__':
         "min_margin": 500,
         "max_margin": 1000}
 
-    iterations = 30
+    iterations = 100
 
     for i in range(11):
         for j in range(11):
+            print(i,j)
             _['lifetime_accuracy'] = i / 10
             _['demand_rmse_to_avg'] = j / 10
 

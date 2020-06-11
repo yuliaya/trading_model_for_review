@@ -112,8 +112,6 @@ def create_items(market: Market):
                                    material=bags_material,
                                    condition=bags_condition)
             new_item.price = establish_price(new_item, market)
-            if new_item.price is None:
-                pass
             new_item.retail_price = retail_price(new_item, market)
             ab_scale = market.model_general_parameters[model]['days_abandoned_exp_scale']
             new_item.owner.days_abandoned = round(numpy.random.exponential(ab_scale), 0)

@@ -124,10 +124,7 @@ def predict_lifetime(item: TradingItem, market:Market):
             else:
                 feature_dict['size_loo'] = market.encoders[item.brand]['no_size']
         if 'original_to_avg' in features:
-            try:
-                feature_dict['original_to_avg'] = item.price / similar_stats(item, market)[1]
-            except:
-                pass
+            feature_dict['original_to_avg'] = item.price / similar_stats(item, market)[1]
         if 'price_to_retail' in features:
             feature_dict['price_to_retail'] = item.price / item.retail_price
         if 'const' in features:
