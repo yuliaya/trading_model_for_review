@@ -1,5 +1,5 @@
 # Trading model
-A simulation model of a luxury second-hand goods market
+A simulation model of a goods resale market
 This model simulates different scenarios for a trading platform using mathematical, statistical, econometric models to recreate each step of an item lifetime
 
 ## Trading logic for a random item
