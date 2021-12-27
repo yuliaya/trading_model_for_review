@@ -19,7 +19,9 @@ class Market:
                  lifetime_accuracy: float = None,
                  demand_rmse_to_avg: float = None,
                  min_margin: int = 100,
-                 max_margin: int = 1000
+                 max_margin: int = 1000,
+                 num_epochs: int=10,
+                 post_to_s3: bool=False
     ):
         self.invest = invest
         self.decision_threshold = 1  # investment decision threshold for % of top items

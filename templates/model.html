@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Model</title>
+</head>
+<body>
+
+<a href="{{url_for('home_page')}}">Back to home</a>
+
+<form method="POST" class="form-register">
+    {{form.hidden_tag() }}
+    <table>
+        <tr>
+            <td>{{form.lifetime_period.label()}}</td>
+            <td>{{form.lifetime_period(class='form-control', value=params['lifetime_period'])}}</td>
+        </tr>
+        <tr>
+            <td>{{form.platform_interest.label()}}</td>
+            <td>{{form.platform_interest(class='form-control', value=params['platform_interest'])}}</td>
+        </tr>
+        <tr>
+            <td>{{form.invest.label()}}</td>
+            <td>{{form.invest(class='form-control')}}</td>
+        </tr>
+        <tr>
+            <td>{{form.segmentation.label()}}</td>
+            <td>{{form.segmentation(class='form-control')}}</td>
+        </tr>
+        <tr>
+            <td>{{form.lifetime_acc.label()}}</td>
+            <td>{{form.lifetime_acc(class='form-control', value=params['lifetime_accuracy'])}}</td>
+        </tr>
+        <tr>
+            <td>{{form.demand_acc.label()}}</td>
+            <td>{{form.demand_acc(class='form-control', value=params['demand_rmse_to_avg'])}}</td>
+        </tr>
+        <tr>
+            <td>{{form.epochs.label()}}</td>
+            <td>{{form.epochs(class='form-control', value=params['num_epochs'])}}</td>
+        </tr>
+    </table>
+
+    {{form.submit(class='btn')}}
+</form>
+
+</body>
+</html>

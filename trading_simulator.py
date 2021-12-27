@@ -1,11 +1,27 @@
 from utils.market_state import Market
 from utils.create_new_items import create_items,initiate_items_list
+from utils.aws import post_to_s3
 import os
 import pandas as pd
 from datetime import timedelta, datetime
 from predict_demand.predict_future_demand import initial_demand_predict, daily_demand_predict
 from decision_making.market_engine import trading_algo
 from math import isnan
+
+PARAMS = {
+    "lifetime_period": 250,
+    "platform_interest": 0.2,
+    "invest": True,
+    "segmentation": False,
+    "segments": {'general': {'p': 0.4, 'reduce_math_exp': 0.6},
+                 'trader': {'p': 0.3, 'reduce_math_exp': 0},
+                 'poor': {'p': 0.3, 'reduce_math_exp': 0.8}
+                 },
+    "lifetime_accuracy": 0.7,
+    "demand_rmse_to_avg": 0.7,
+    "min_margin": 500,
+    "max_margin": 1000,
+    'num_epochs': 1}
 
 def run_simulator(market: Market) -> pd.DataFrame:
 
@@ -43,48 +59,11 @@ def run_simulator(market: Market) -> pd.DataFrame:
     return output_df
 
 
+def run(params: dict):
+    market = Market(**params)
+    df = run_simulator(market)
+    return df
+
+
 if __name__ == '__main__':
-
-    _ = {
-        "lifetime_period": 250,
-        "platform_interest": 0.2,
-        "invest": True,
-        "segmentation": False,
-        "segments": {'general': {'p': 0.4,'reduce_math_exp': 0.6},
-                     'trader': {'p': 0.3,'reduce_math_exp': 0},
-                     'poor': {'p': 0.3, 'reduce_math_exp': 0.8}
-                  },
-        "lifetime_accuracy": 1,
-        "demand_rmse_to_avg": 0,
-        "min_margin": 500,
-        "max_margin": 1000}
-
-    iterations = 100
-
-    for i in range(11):
-        for j in range(11):
-            print(i,j)
-            _['lifetime_accuracy'] = i / 10
-            _['demand_rmse_to_avg'] = j / 10
-
-            parameters_list = []
-            if _['invest']:
-                parameters_list.append("inv")
-            if _['segmentation']:
-                parameters_list.append("segm")
-            parameters_list.append("life_acc=%s" % _['lifetime_accuracy'])
-            parameters_list.append("demand_rmse=%s" % _['demand_rmse_to_avg'])
-            parameters_list.append("min_m=%s" % _['min_margin'])
-            parameters_list.append("max_m=%s" % _['max_margin'])
-            dir = 'results/' + (' '.join(parameters_list))
-
-            if not os.path.exists(dir):
-                os.mkdir(dir)
-
-            files = os.listdir(dir)
-
-            if len(files) < iterations:
-                for iteration in range(len(files), iterations):
-                    market = Market(**_)
-                    df = run_simulator(market)
-                    df.to_csv(dir + "/%s.csv" % iteration)
+    run(PARAMS)

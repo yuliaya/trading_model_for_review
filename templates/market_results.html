@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Results</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@2.9.4/dist/Chart.min.js"></script>
+</head>
+<body>
+<a href="{{url_for('home_page')}}">Home</a>
+<a href="{{url_for('modeling_page')}}">Back to parameters</a>
+
+<br>
+
+<table>
+    <tr>
+        <td>Time period</td>
+        <td>Incomes</td>
+        <td>Costs</td>
+        <td>Profit</td>
+    </tr>
+
+    {% for key, row in df.iterrows() %}
+    <tr>
+        <td>{{ key }}</td>
+        <td>{{ row['incomes'] }}</td>
+        <td>{{ row['costs'] }}</td>
+        <td>{{ row['profit'] }}</td>
+    </tr>
+    {% endfor %}
+
+</table>
+</body>
+</html>
