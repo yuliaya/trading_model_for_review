@@ -1,5 +1,5 @@
 import boto3
-from secrets import *
+from project_secrets import *
 from datetime import datetime
 from io import StringIO
 import pandas as pd
