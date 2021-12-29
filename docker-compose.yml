@@ -1,9 +1,9 @@
-version: "3.8.12"
+version: "3.7"
 services:
   app:
     build: .
-    command: python app.py
+    command: python app.py --host=0.0.0.0
     ports:
-      - "5000:5000"
+      - "8888:5000"
     volumes:
       - .:/python-flaskdocker images

@@ -33,4 +33,4 @@ def modeling_results_page(model_params=PARAMS):
     return render_template('market_results.html', df=df)
 
 if __name__ == "__main__":
-    app.run(host="localhost", port="5000", debug=True)
+    app.run(host="0.0.0.0", port="5000", debug=True)
