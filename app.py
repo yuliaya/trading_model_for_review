@@ -2,9 +2,25 @@ from flask import Flask, render_template, redirect, url_for
 from trading_simulator import PARAMS, run
 from forms import ParamsForm
 
+import urllib
+from healthcheck import HealthCheck
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = '3a368f9c1dce6b6ab1523772'
+
+health = HealthCheck(app, "/healthcheck")
+
+
+def website_available():
+    code = urllib.urlopen("http://0.0.0.0:5000").getcode()
+    print(code)
+    if code == 200:
+        return True, "Website up"
+    else:
+        return False, "Something is wrong!"
+
+
+health.add_check(website_available)
 
 
 @app.route("/")
@@ -27,10 +43,11 @@ def modeling_page():
     return render_template('model.html', form=form, params=PARAMS)
 
 
-@app.route ("/model/results")
+@app.route("/model/results")
 def modeling_results_page(model_params=PARAMS):
     df = run(model_params)
     return render_template('market_results.html', df=df)
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port="5000", debug=True)
